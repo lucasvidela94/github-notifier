@@ -22,65 +22,43 @@ and mark it as resolved.
 ## Requirements
 
 - Go 1.21 or later
-- Arch Linux (or any distro with GTK3 and libayatana-appindicator)
-- `notify-send` available in `$PATH` (provided by `libnotify`)
+- GTK3 and libayatana-appindicator3 (installed automatically by the installer)
+- `notify-send` (installed automatically)
 
-Install system dependencies on Arch:
-
-```bash
-make deps
-```
-
-This runs:
-
-```bash
-sudo pacman -S --needed gtk3 libappindicator-gtk3 libnotify
-```
-
----
-
-## GitHub token
-
-Go to `https://github.com/settings/tokens/new` and create a classic personal
-access token with the following scopes:
-
-| Scope | Purpose |
-|---|---|
-| `notifications` | Read and mark notifications |
-| `repo` | Include notifications from private repositories |
-
-If you only work with public repositories, `notifications` alone is sufficient.
-
-Store the token in the environment file:
-
-```
-~/.config/github-notifier/env
-```
-
-```ini
-GITHUB_TOKEN=ghp_your_token_here
-# POLL_INTERVAL_SECONDS=60
-```
-
-The file is created with permissions `600` so only your user can read it.
+Supported distros: Arch, Ubuntu/Debian, Fedora, openSUSE.
 
 ---
 
 ## Installation
 
 ```bash
-# Clone
 git clone https://github.com/you/github-notifier
 cd github-notifier
-
-# Set your token
-nano ~/.config/github-notifier/env
-
-# Build, install to ~/.local/bin, and enable the systemd user service
-make enable
+./install.sh
 ```
 
-The service will now start automatically every time you log in.
+The installer handles everything:
+
+1. Installs system dependencies for your distro
+2. Runs the test suite
+3. Asks for your GitHub token (never stored in plain shell history)
+4. Builds and installs the binary to `~/.local/bin`
+5. Registers and starts a systemd user service
+
+After that the tray icon appears immediately and restarts automatically on login.
+
+### GitHub token
+
+The installer will prompt you for a token and guide you through the URL.
+If you want to create it beforehand, go to `https://github.com/settings/tokens/new`
+and select these scopes:
+
+| Scope | Purpose |
+|---|---|
+| `notifications` | Read and mark notifications |
+| `repo` | Include notifications from private repositories |
+
+The token is stored in `~/.config/github-notifier/env` with permissions `600`.
 
 ---
 
