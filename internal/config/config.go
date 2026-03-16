@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	GitHubToken  string
+	GitHubUser   string
 	PollInterval time.Duration
 	DBPath       string
 }
@@ -17,6 +18,11 @@ func Load() (*Config, error) {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
 		return nil, errors.New("GITHUB_TOKEN environment variable is required")
+	}
+
+	user := os.Getenv("GITHUB_USER")
+	if user == "" {
+		return nil, errors.New("GITHUB_USER environment variable is required")
 	}
 
 	pollSecs := 60
@@ -34,6 +40,7 @@ func Load() (*Config, error) {
 
 	return &Config{
 		GitHubToken:  token,
+		GitHubUser:   user,
 		PollInterval: time.Duration(pollSecs) * time.Second,
 		DBPath:       dbPath,
 	}, nil

@@ -12,7 +12,7 @@ import (
 	"github-notifier/icon"
 	"github-notifier/internal/config"
 	"github-notifier/internal/db"
-	ghclient "github-notifier/internal/github"
+	"github-notifier/internal/engine"
 )
 
 const maxItems = 15
@@ -21,21 +21,27 @@ const maxItems = 15
 type App struct {
 	cfg    *config.Config
 	db     *db.DB
-	github *ghclient.Client
+	engine *engine.Engine
 
 	mu        sync.Mutex
 	items     []*db.Notification
-	menuItems []*systray.MenuItem
+	menuItems []*menuItem
 
 	mCount   *systray.MenuItem
 	mRefresh *systray.MenuItem
+}
+
+type menuItem struct {
+	parent  *systray.MenuItem
+	open    *systray.MenuItem
+	resolve *systray.MenuItem
 }
 
 func New(cfg *config.Config, database *db.DB) *App {
 	return &App{
 		cfg:    cfg,
 		db:     database,
-		github: ghclient.New(cfg.GitHubToken),
+		engine: engine.New(cfg.GitHubToken, cfg.GitHubUser, database),
 	}
 }
 
@@ -49,14 +55,23 @@ func (a *App) OnReady() {
 
 	// Pre-create hidden slots for notification entries.
 	for i := 0; i < maxItems; i++ {
-		item := systray.AddMenuItem("", "")
-		item.Hide()
-		a.menuItems = append(a.menuItems, item)
+		parent := systray.AddMenuItem("", "")
+		parent.Hide()
+
+		// Submenu items
+		open := parent.AddSubMenuItem("Abrir", "Abrir el comentario en el navegador")
+		resolve := parent.AddSubMenuItem("Marcar como resuelto", "Marcar esta notificación como resuelta")
+
+		a.menuItems = append(a.menuItems, &menuItem{
+			parent:  parent,
+			open:    open,
+			resolve: resolve,
+		})
 	}
 
 	systray.AddSeparator()
 	a.mRefresh = systray.AddMenuItem("Actualizar", "Buscar nuevas notificaciones")
-	mMarkAll := systray.AddMenuItem("Marcar todo como leído", "Resolver todas las notificaciones")
+	mMarkAll := systray.AddMenuItem("Marcar todo como resuelto", "Resolver todas las notificaciones")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Salir", "Cerrar GitHub Notifier")
 
@@ -65,7 +80,8 @@ func (a *App) OnReady() {
 
 	// Handle notification item clicks in individual goroutines.
 	for i, item := range a.menuItems {
-		go a.handleClick(i, item)
+		go a.handleOpenClick(i, item.open)
+		go a.handleResolveClick(i, item.resolve)
 	}
 
 	// Handle control menu events.
@@ -90,7 +106,6 @@ func (a *App) OnExit() {
 // poll runs the refresh loop on the configured interval.
 func (a *App) poll() {
 	a.refresh()
-	// Use a ticker driven by the channel approach to avoid importing time in a goroutine race.
 	ticker := newTicker(a.cfg.PollInterval)
 	defer ticker.stop()
 	for range ticker.ch {
@@ -98,23 +113,27 @@ func (a *App) poll() {
 	}
 }
 
-// refresh fetches from GitHub, persists, sends desktop notifications, updates menu.
+// refresh fetches from all sources, persists, sends desktop notifications, updates menu.
 func (a *App) refresh() {
 	ctx := context.Background()
-	notifications, err := a.github.FetchNotifications(ctx)
+
+	// Fetch all notifications from all sources
+	notifications, err := a.engine.FetchAll(ctx)
 	if err != nil {
 		log.Printf("Error al obtener notificaciones: %v", err)
 		return
 	}
 
+	// Persist to database
+	if err := a.engine.Persist(notifications); err != nil {
+		log.Printf("Error al persistir notificaciones: %v", err)
+	}
+
+	// Send desktop notifications for new ones
 	for _, n := range notifications {
 		existing, _ := a.db.GetByID(n.ID)
 		if existing == nil {
-			// Brand-new notification — send desktop alert.
 			sendDesktopNotification(n)
-		}
-		if err := a.db.Upsert(n); err != nil {
-			log.Printf("Error al guardar notificación %s: %v", n.ID, err)
 		}
 	}
 
@@ -123,7 +142,7 @@ func (a *App) refresh() {
 
 // updateMenu rebuilds the tray menu from the DB.
 func (a *App) updateMenu() {
-	unresolved, err := a.db.ListUnresolved()
+	unresolved, err := a.engine.GetUnresolved()
 	if err != nil {
 		log.Printf("Error al listar notificaciones: %v", err)
 		return
@@ -145,18 +164,26 @@ func (a *App) updateMenu() {
 	for i, slot := range a.menuItems {
 		if i < len(unresolved) {
 			n := unresolved[i]
-			label := fmt.Sprintf("%s  %s", reasonEmoji(n.Reason), truncate(n.Title, 42))
-			slot.SetTitle(label)
-			slot.SetTooltip(fmt.Sprintf("%s\n%s\nClick para abrir el comentario y resolver", n.Repo, humanReason(n.Reason)))
-			slot.Show()
+			// Label: Emoji + Autor + Título truncado
+			label := fmt.Sprintf("%s %s: %s", reasonEmoji(n.Reason), truncate(n.Author, 12), truncate(n.Title, 35))
+			slot.parent.SetTitle(label)
+
+			// Tooltip con toda la metadata
+			tooltip := fmt.Sprintf("📁 %s\n👤 %s\n📝 %s\n\n💬 %s",
+				n.Repo,
+				n.Author,
+				humanReason(n.Reason),
+				truncate(n.Title, 60))
+			slot.parent.SetTooltip(tooltip)
+			slot.parent.Show()
 		} else {
-			slot.Hide()
+			slot.parent.Hide()
 		}
 	}
 }
 
-// handleClick opens the notification URL and marks it resolved when clicked.
-func (a *App) handleClick(idx int, item *systray.MenuItem) {
+// handleOpenClick opens the notification URL when clicked.
+func (a *App) handleOpenClick(idx int, item *systray.MenuItem) {
 	for range item.ClickedCh {
 		a.mu.Lock()
 		if idx >= len(a.items) {
@@ -171,12 +198,22 @@ func (a *App) handleClick(idx int, item *systray.MenuItem) {
 				log.Printf("Error al abrir URL: %v", err)
 			}
 		}
+	}
+}
 
-		if err := a.db.MarkResolved(n.ID); err != nil {
-			log.Printf("Error al marcar como resuelto: %v", err)
+// handleResolveClick marks the notification as resolved.
+func (a *App) handleResolveClick(idx int, item *systray.MenuItem) {
+	for range item.ClickedCh {
+		a.mu.Lock()
+		if idx >= len(a.items) {
+			a.mu.Unlock()
+			continue
 		}
-		if err := a.github.MarkRead(context.Background(), n.ID); err != nil {
-			log.Printf("Error al marcar como leído en GitHub: %v", err)
+		n := a.items[idx]
+		a.mu.Unlock()
+
+		if err := a.engine.MarkResolved(n.ID); err != nil {
+			log.Printf("Error al marcar como resuelto: %v", err)
 		}
 
 		go a.updateMenu()
@@ -185,22 +222,23 @@ func (a *App) handleClick(idx int, item *systray.MenuItem) {
 
 // markAllRead resolves every pending notification.
 func (a *App) markAllRead() {
-	unresolved, err := a.db.ListUnresolved()
+	unresolved, err := a.engine.GetUnresolved()
 	if err != nil {
 		return
 	}
-	ctx := context.Background()
 	for _, n := range unresolved {
-		_ = a.db.MarkResolved(n.ID)
-		_ = a.github.MarkRead(ctx, n.ID)
+		_ = a.engine.MarkResolved(n.ID)
 	}
 	a.updateMenu()
 }
 
 // sendDesktopNotification calls notify-send to show a system notification.
-func sendDesktopNotification(n *db.Notification) {
+func sendDesktopNotification(n *engine.UnifiedNotification) {
 	summary := fmt.Sprintf("GitHub: %s", n.Reason)
 	body := fmt.Sprintf("[%s]\n%s", n.Repo, n.Title)
+	if n.Author != "" {
+		body = fmt.Sprintf("[%s] %s: %s", n.Repo, n.Author, n.Title)
+	}
 	cmd := exec.Command("notify-send",
 		"--icon=dialog-information",
 		"--urgency=normal",
@@ -229,6 +267,14 @@ func reasonEmoji(reason string) string {
 		return "👀"
 	case "author":
 		return "✏️"
+	case "subscribed":
+		return "🔔"
+	case "manual":
+		return "📌"
+	case "review_comment":
+		return "📝"
+	case "issue_comment":
+		return "💭"
 	default:
 		return "•"
 	}
@@ -246,6 +292,14 @@ func humanReason(reason string) string {
 		return "Te pidieron review"
 	case "author":
 		return "Actividad en un PR tuyo"
+	case "subscribed":
+		return "Actividad en PR suscripto"
+	case "manual":
+		return "Notificación manual"
+	case "review_comment":
+		return "Comentario en código"
+	case "issue_comment":
+		return "Comentario en PR"
 	default:
 		return reason
 	}

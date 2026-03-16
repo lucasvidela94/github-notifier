@@ -16,6 +16,7 @@ type Notification struct {
 	Type      string
 	URL       string
 	Reason    string
+	Author    string
 	Unread    bool
 	Resolved  bool
 	CreatedAt time.Time
@@ -44,6 +45,7 @@ func New(path string) (*DB, error) {
 }
 
 func migrate(db *sql.DB) error {
+	// Crear tabla si no existe
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS notifications (
 			id         TEXT PRIMARY KEY,
@@ -52,25 +54,34 @@ func migrate(db *sql.DB) error {
 			type       TEXT NOT NULL,
 			url        TEXT NOT NULL,
 			reason     TEXT NOT NULL,
+			author     TEXT DEFAULT '',
 			unread     INTEGER NOT NULL DEFAULT 1,
 			resolved   INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL
 		)
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Migración: agregar columna author si no existe
+	_, _ = db.Exec(`ALTER TABLE notifications ADD COLUMN author TEXT DEFAULT ''`)
+
+	return nil
 }
 
 func (d *DB) Upsert(n *Notification) error {
 	_, err := d.db.Exec(`
-		INSERT INTO notifications (id, repo, title, type, url, reason, unread, resolved, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO notifications (id, repo, title, type, url, reason, author, unread, resolved, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title      = excluded.title,
+			author     = excluded.author,
 			unread     = excluded.unread,
 			updated_at = excluded.updated_at
 	`,
-		n.ID, n.Repo, n.Title, n.Type, n.URL, n.Reason,
+		n.ID, n.Repo, n.Title, n.Type, n.URL, n.Reason, n.Author,
 		boolInt(n.Unread), boolInt(n.Resolved),
 		n.CreatedAt, n.UpdatedAt,
 	)
@@ -79,13 +90,13 @@ func (d *DB) Upsert(n *Notification) error {
 
 func (d *DB) GetByID(id string) (*Notification, error) {
 	row := d.db.QueryRow(`
-		SELECT id, repo, title, type, url, reason, unread, resolved, created_at, updated_at
+		SELECT id, repo, title, type, url, reason, author, unread, resolved, created_at, updated_at
 		FROM notifications WHERE id = ?
 	`, id)
 
 	n := &Notification{}
 	var unread, resolved int
-	err := row.Scan(&n.ID, &n.Repo, &n.Title, &n.Type, &n.URL, &n.Reason,
+	err := row.Scan(&n.ID, &n.Repo, &n.Title, &n.Type, &n.URL, &n.Reason, &n.Author,
 		&unread, &resolved, &n.CreatedAt, &n.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -100,7 +111,7 @@ func (d *DB) GetByID(id string) (*Notification, error) {
 
 func (d *DB) ListUnresolved() ([]*Notification, error) {
 	rows, err := d.db.Query(`
-		SELECT id, repo, title, type, url, reason, unread, resolved, created_at, updated_at
+		SELECT id, repo, title, type, url, reason, author, unread, resolved, created_at, updated_at
 		FROM notifications
 		WHERE resolved = 0 AND unread = 1
 		ORDER BY updated_at DESC
@@ -114,7 +125,7 @@ func (d *DB) ListUnresolved() ([]*Notification, error) {
 	for rows.Next() {
 		n := &Notification{}
 		var unread, resolved int
-		if err := rows.Scan(&n.ID, &n.Repo, &n.Title, &n.Type, &n.URL, &n.Reason,
+		if err := rows.Scan(&n.ID, &n.Repo, &n.Title, &n.Type, &n.URL, &n.Reason, &n.Author,
 			&unread, &resolved, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			return nil, err
 		}

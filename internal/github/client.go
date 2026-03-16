@@ -15,11 +15,13 @@ import (
 
 // Reasons that indicate a comment or review activity on a PR.
 var prCommentReasons = map[string]bool{
-	"comment":         true,
-	"mention":         true,
-	"team_mention":    true,
+	"comment":          true,
+	"mention":          true,
+	"team_mention":     true,
 	"review_requested": true,
-	"author":          true,
+	"author":           true,
+	"subscribed":       true,
+	"manual":           true,
 }
 
 type Client struct {
@@ -40,8 +42,8 @@ func New(token string) *Client {
 
 func (c *Client) FetchNotifications(ctx context.Context) ([]*db.Notification, error) {
 	opts := &gogithub.NotificationListOptions{
-		All:   false,
-		Since: time.Now().Add(-48 * time.Hour),
+		All:   true,
+		Since: time.Now().UTC().Add(-7 * 24 * time.Hour),
 	}
 
 	raw, _, err := c.gh.Activity.ListNotifications(ctx, opts)

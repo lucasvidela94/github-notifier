@@ -13,9 +13,9 @@ func Normal() []byte {
 	return render(color.RGBA{0x3a, 0x3a, 0x3a, 0xff}, false)
 }
 
-// Alert returns an orange circle icon (new notifications pending).
+// Alert returns a blue circle icon (new notifications pending).
 func Alert() []byte {
-	return render(color.RGBA{0xe3, 0x6b, 0x00, 0xff}, true)
+	return render(color.RGBA{0x2d, 0x7d, 0x9e, 0xff}, true)
 }
 
 func render(bg color.RGBA, dot bool) []byte {
@@ -79,16 +79,28 @@ func render(bg color.RGBA, dot bool) []byte {
 		}
 	}
 
-	// Red dot on top-right when alert
+	// White notification badge on top-right when alert
 	if dot {
-		dotColor := color.RGBA{0xff, 0x30, 0x30, 0xff}
-		dotCX, dotCY := cx+8.0, cy-8.0
+		// Outer ring (white border)
+		badgeColor := color.RGBA{0xff, 0xff, 0xff, 0xff}
+		badgeCX, badgeCY := cx+8.0, cy-8.0
 		for y := 0; y < size; y++ {
 			for x := 0; x < size; x++ {
-				dx := float64(x) - dotCX
-				dy := float64(y) - dotCY
-				if math.Sqrt(dx*dx+dy*dy) <= 4.0 {
-					img.Set(x, y, dotColor)
+				dx := float64(x) - badgeCX
+				dy := float64(y) - badgeCY
+				if math.Sqrt(dx*dx+dy*dy) <= 5.0 {
+					img.Set(x, y, badgeColor)
+				}
+			}
+		}
+		// Inner circle (bright cyan accent)
+		innerBadgeColor := color.RGBA{0x00, 0xd4, 0xff, 0xff}
+		for y := 0; y < size; y++ {
+			for x := 0; x < size; x++ {
+				dx := float64(x) - badgeCX
+				dy := float64(y) - badgeCY
+				if math.Sqrt(dx*dx+dy*dy) <= 3.5 {
+					img.Set(x, y, innerBadgeColor)
 				}
 			}
 		}

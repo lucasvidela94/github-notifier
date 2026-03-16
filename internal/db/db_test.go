@@ -23,6 +23,7 @@ func sampleNotification(id string) *Notification {
 		Type:      "PullRequest",
 		URL:       "https://github.com/alice/myrepo/pull/1#issuecomment-123",
 		Reason:    "comment",
+		Author:    "testuser",
 		Unread:    true,
 		Resolved:  false,
 		CreatedAt: time.Now(),
@@ -50,6 +51,9 @@ func TestUpsertAndGetByID(t *testing.T) {
 	}
 	if got.Repo != n.Repo {
 		t.Errorf("Repo = %q, want %q", got.Repo, n.Repo)
+	}
+	if got.Author != n.Author {
+		t.Errorf("Author = %q, want %q", got.Author, n.Author)
 	}
 }
 

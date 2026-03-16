@@ -69,8 +69,8 @@ func TestResolveCommentURL_ServerError(t *testing.T) {
 }
 
 func TestPRCommentReasons(t *testing.T) {
-	shouldInclude := []string{"comment", "mention", "team_mention", "review_requested", "author"}
-	shouldExclude := []string{"subscribed", "ci_activity", "state_change", ""}
+	shouldInclude := []string{"comment", "mention", "team_mention", "review_requested", "author", "subscribed", "manual"}
+	shouldExclude := []string{"ci_activity", "state_change", "", "invalid_reason"}
 
 	for _, r := range shouldInclude {
 		if !prCommentReasons[r] {
