@@ -1,9 +1,8 @@
-.PHONY: build run install enable disable logs test deps clean
+.PHONY: build run install enable disable logs test test-install deps clean release
 
 BINARY  := github-notifier
+VERSION ?= dev
 INSTALL := $(HOME)/.local/bin/$(BINARY)
-AUTOSTART_DIR := $(HOME)/.config/autostart
-AUTOSTART_FILE := $(AUTOSTART_DIR)/$(BINARY).desktop
 
 ## Instala dependencias del sistema (Arch Linux)
 deps:
@@ -15,36 +14,26 @@ mod:
 
 ## Compila el binario
 build:
-	go build -o $(BINARY) .
+	go build -ldflags="-s -w -X main.Version=$(VERSION)" -o $(BINARY) .
 
 ## Compila y ejecuta (requiere GITHUB_TOKEN)
 run: build
 	./$(BINARY)
 
-## Instala el binario en ~/.local/bin y configura autoarranque
-install: build
-	@mkdir -p $(dir $(INSTALL)) $(AUTOSTART_DIR)
-	cp $(BINARY) $(INSTALL)
-	@echo "[Desktop Entry]"                           >  $(AUTOSTART_FILE)
-	@echo "Type=Application"                         >> $(AUTOSTART_FILE)
-	@echo "Name=GitHub Notifier"                     >> $(AUTOSTART_FILE)
-	@echo "Exec=env GITHUB_TOKEN=$$GITHUB_TOKEN $(INSTALL)" >> $(AUTOSTART_FILE)
-	@echo "Hidden=false"                             >> $(AUTOSTART_FILE)
-	@echo "NoDisplay=false"                          >> $(AUTOSTART_FILE)
-	@echo "X-GNOME-Autostart-enabled=true"           >> $(AUTOSTART_FILE)
-	@echo "Comment=Notificaciones de GitHub en la barra del sistema" >> $(AUTOSTART_FILE)
-	@echo ""
-	@echo "✓ Instalado en $(INSTALL)"
-	@echo "✓ Autoarranque en $(AUTOSTART_FILE)"
-	@echo ""
-	@echo "Asegurate de exportar GITHUB_TOKEN en tu shell antes de iniciar sesión."
+## Instala via install.sh
+install:
+	bash install.sh
 
-## Corre todos los tests
+## Corre todos los tests (Go + installer)
 test:
-	go test ./internal/... -v
+	go test ./internal/... -v -count=1
 
-## Habilita e inicia el servicio systemd (arranca solo con la sesión)
-enable: install
+## Corre tests del installer
+test-install: build
+	bash install_test.sh
+
+## Habilita e inicia el servicio systemd
+enable:
 	systemctl --user daemon-reload
 	systemctl --user enable --now github-notifier.service
 	@echo "Servicio activo. Usa 'make logs' para ver salida."
@@ -57,8 +46,15 @@ disable:
 logs:
 	journalctl --user -u github-notifier.service -f
 
+## Crea un tag y pushea para triggear release
+release:
+	@test -n "$(V)" || (echo "Usa: make release V=v1.0.0" && exit 1)
+	git tag -a $(V) -m "Release $(V)"
+	git push origin $(V)
+	@echo "Tag $(V) pushed. GitHub Actions will build and release."
+
 ## Elimina binario, servicio y autoarranque
 clean:
-	rm -f $(BINARY) $(INSTALL) $(AUTOSTART_FILE)
+	rm -f $(BINARY) $(INSTALL)
 	-systemctl --user disable --now github-notifier.service 2>/dev/null
 	rm -f $(HOME)/.config/systemd/user/github-notifier.service

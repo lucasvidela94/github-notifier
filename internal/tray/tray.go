@@ -250,6 +250,20 @@ func sendDesktopNotification(n *engine.UnifiedNotification) {
 	}
 }
 
+// SendUpdateNotification sends a desktop notification about a new version.
+func SendUpdateNotification(current, latest string) {
+	summary := "github-notifier: update available"
+	body := fmt.Sprintf("%s -> %s\nRun: github-notifier update", current, latest)
+	cmd := exec.Command("notify-send",
+		"--icon=dialog-information",
+		"--urgency=normal",
+		summary, body,
+	)
+	if err := cmd.Run(); err != nil {
+		log.Printf("notify-send error: %v", err)
+	}
+}
+
 func truncate(s string, max int) string {
 	if len(s) <= max {
 		return s
