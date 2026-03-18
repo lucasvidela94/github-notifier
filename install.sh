@@ -75,10 +75,15 @@ install_sys_deps() {
     info "Installing system dependencies..."
 
     if command -v pacman &>/dev/null; then
-        sudo pacman -S --needed --noconfirm gtk3 libappindicator-gtk3 libnotify    elif command -v apt-get &>/dev/null; then
-        sudo apt-get update -qq        sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libnotify-bin    elif command -v dnf &>/dev/null; then
-        sudo dnf install -y gtk3-devel libayatana-appindicator-gtk3-devel libnotify    elif command -v zypper &>/dev/null; then
-        sudo zypper install -y gtk3-devel libappindicator3-devel libnotify-tools    else
+        sudo pacman -S --needed --noconfirm gtk3 libappindicator-gtk3 libnotify
+    elif command -v apt-get &>/dev/null; then
+        sudo apt-get update -qq
+        sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libnotify-bin
+    elif command -v dnf &>/dev/null; then
+        sudo dnf install -y gtk3-devel libayatana-appindicator-gtk3-devel libnotify
+    elif command -v zypper &>/dev/null; then
+        sudo zypper install -y gtk3-devel libappindicator3-devel libnotify-tools
+    else
         warn "Unknown package manager. Install manually: gtk3, libappindicator3, libnotify"
         warn "Then re-run this script."
         exit 1
@@ -130,14 +135,16 @@ setup_token() {
 
     local token
     while true; do
-        read -rsp "  Paste your token: " token        printf '\n'
+        read -rsp "  Paste your token: " token
+        printf '\n'
         [[ "$token" == ghp_* || "$token" == github_pat_* ]] && break
         warn "Token does not look valid (should start with ghp_ or github_pat_). Try again."
     done
 
     printf '\n  GitHub username (for PR comment notifications).\n'
     local ghuser
-    read -rp "  Your GitHub username: " ghuser    [[ -z "$ghuser" ]] && die "GitHub username is required."
+    read -rp "  Your GitHub username: " ghuser
+    [[ -z "$ghuser" ]] && die "GitHub username is required."
 
     cat > "$ENV_FILE" <<EOF
 GITHUB_TOKEN=$token
