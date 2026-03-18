@@ -70,14 +70,14 @@ install_sys_deps() {
     info "Installing system dependencies..."
 
     if command -v pacman &>/dev/null; then
-        sudo pacman -S --needed --noconfirm gtk3 libappindicator-gtk3 libnotify
+        sudo pacman -S --needed --noconfirm gtk3 libappindicator-gtk3 libnotify </dev/tty
     elif command -v apt-get &>/dev/null; then
-        sudo apt-get update -qq
-        sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libnotify-bin
+        sudo apt-get update -qq </dev/tty
+        sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libnotify-bin </dev/tty
     elif command -v dnf &>/dev/null; then
-        sudo dnf install -y gtk3-devel libayatana-appindicator-gtk3-devel libnotify
+        sudo dnf install -y gtk3-devel libayatana-appindicator-gtk3-devel libnotify </dev/tty
     elif command -v zypper &>/dev/null; then
-        sudo zypper install -y gtk3-devel libappindicator3-devel libnotify-tools
+        sudo zypper install -y gtk3-devel libappindicator3-devel libnotify-tools </dev/tty
     else
         warn "Unknown package manager. Install manually: gtk3, libappindicator3, libnotify"
         warn "Then re-run this script."
@@ -130,7 +130,7 @@ setup_token() {
 
     local token
     while true; do
-        read -rsp "  Paste your token: " token
+        read -rsp "  Paste your token: " token </dev/tty
         printf '\n'
         [[ "$token" == ghp_* || "$token" == github_pat_* ]] && break
         warn "Token does not look valid (should start with ghp_ or github_pat_). Try again."
@@ -138,7 +138,7 @@ setup_token() {
 
     printf '\n  GitHub username (for PR comment notifications).\n'
     local ghuser
-    read -rp "  Your GitHub username: " ghuser
+    read -rp "  Your GitHub username: " ghuser </dev/tty
     [[ -z "$ghuser" ]] && die "GitHub username is required."
 
     cat > "$ENV_FILE" <<EOF
