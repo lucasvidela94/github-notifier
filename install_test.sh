@@ -116,11 +116,11 @@ test_version_flag() {
 # ── test: service file template vars ─────────
 
 test_service_template() {
-    # Verify install.sh contains expected service fields
+    # Verify install.sh contains expected fields
     local content
     content=$(cat install.sh)
 
-    for field in "ExecStart=" "EnvironmentFile=" "Restart=on-failure" "WantedBy=graphical-session.target"; do
+    for field in "ExecStart=" "EnvironmentFile=" "Restart=on-failure" "WantedBy=graphical-session.target" "_main_wrapper" "check_sys_deps"; do
         if echo "$content" | grep -q "$field"; then
             printf '  \033[32mPASS\033[0m  service template has %s\n' "$field"
             PASS=$((PASS + 1))

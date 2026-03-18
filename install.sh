@@ -7,6 +7,11 @@ set -euo pipefail
 #  curl -fsSL https://raw.githubusercontent.com/lucasvidela94/github-notifier/master/install.sh | bash
 # ─────────────────────────────────────────────
 
+# Wrap everything in a function so bash reads the entire script before
+# executing. This is critical for curl|bash — without it, exec < /dev/tty
+# cuts the pipe and bash stops reading the rest of the script.
+_main_wrapper() {
+
 REPO="lucasvidela94/github-notifier"
 BINARY="github-notifier"
 INSTALL_DIR="$HOME/.local/bin"
@@ -15,7 +20,8 @@ SERVICE_DIR="$HOME/.config/systemd/user"
 SERVICE_FILE="$SERVICE_DIR/$BINARY.service"
 ENV_FILE="$CONFIG_DIR/env"
 
-# When piped via curl|bash, stdin is the pipe. Reattach to the real terminal.
+# When piped via curl|bash, stdin is the pipe. Reattach to the real terminal
+# so that interactive reads (token prompt) work.
 if [[ ! -t 0 ]]; then
     exec < /dev/tty
 fi
@@ -69,27 +75,51 @@ check_installed_version() {
     fi
 }
 
-# ── install system deps ─────────────────────
+# ── check / install system deps ──────────────
 
-install_sys_deps() {
-    info "Installing system dependencies..."
+check_sys_deps() {
+    local missing=""
 
-    if command -v pacman &>/dev/null; then
-        sudo pacman -S --needed --noconfirm gtk3 libappindicator-gtk3 libnotify
-    elif command -v apt-get &>/dev/null; then
-        sudo apt-get update -qq
-        sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libnotify-bin
-    elif command -v dnf &>/dev/null; then
-        sudo dnf install -y gtk3-devel libayatana-appindicator-gtk3-devel libnotify
-    elif command -v zypper &>/dev/null; then
-        sudo zypper install -y gtk3-devel libappindicator3-devel libnotify-tools
-    else
-        warn "Unknown package manager. Install manually: gtk3, libappindicator3, libnotify"
-        warn "Then re-run this script."
-        exit 1
+    # Check for the libraries we actually need at runtime.
+    for lib in gtk+-3.0 ayatana-appindicator3-0.1 libnotify; do
+        if ! pkg-config --exists "$lib" 2>/dev/null; then
+            missing="$missing $lib"
+        fi
+    done
+
+    if [[ -z "$missing" ]]; then
+        success "System dependencies already installed."
+        return
     fi
 
-    success "System dependencies installed."
+    # Fallback: check with appindicator3 (non-ayatana)
+    if [[ "$missing" == *"ayatana"* ]]; then
+        if pkg-config --exists appindicator3-0.1 2>/dev/null; then
+            missing="${missing/ ayatana-appindicator3-0.1/}"
+        fi
+    fi
+
+    if [[ -z "${missing// /}" ]]; then
+        success "System dependencies already installed."
+        return
+    fi
+
+    warn "Missing system dependencies."
+    printf '\n  Install them with:\n\n'
+
+    if command -v pacman &>/dev/null; then
+        printf '    sudo pacman -S --needed gtk3 libappindicator-gtk3 libnotify\n\n'
+    elif command -v apt-get &>/dev/null; then
+        printf '    sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libnotify-bin\n\n'
+    elif command -v dnf &>/dev/null; then
+        printf '    sudo dnf install -y gtk3-devel libayatana-appindicator-gtk3-devel libnotify\n\n'
+    elif command -v zypper &>/dev/null; then
+        printf '    sudo zypper install -y gtk3-devel libappindicator3-devel libnotify-tools\n\n'
+    else
+        printf '    gtk3, libappindicator3, libnotify (use your package manager)\n\n'
+    fi
+
+    die "Install the dependencies above, then re-run this script."
 }
 
 # ── download binary ──────────────────────────
@@ -228,7 +258,7 @@ main() {
         info "Updating $INSTALLED_VERSION -> $LATEST_VERSION"
     fi
 
-    install_sys_deps
+    check_sys_deps
     download_binary
 
     if [[ -n "$INSTALLED_VERSION" ]]; then
@@ -244,3 +274,8 @@ main() {
 }
 
 main "$@"
+exit 0
+
+} # end _main_wrapper
+
+_main_wrapper "$@"
