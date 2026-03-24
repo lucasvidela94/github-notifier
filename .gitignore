@@ -1,3 +1,29 @@
+# Binaries
 github-notifier
 github-notifier_*
+*.exe
+
+# Database
 *.db
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+
+# Test coverage
+*.out
+coverage.txt
