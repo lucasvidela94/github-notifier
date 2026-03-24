@@ -231,9 +231,10 @@ print_summary() {
     printf '  └─────────────────────────────────────────────┘\n\n'
     printf '  Version: %s\n\n' "$LATEST_VERSION"
     printf '  Useful commands:\n'
+    printf '    systemctl --user start github-notifier    open tray icon\n'
+    printf '    systemctl --user stop github-notifier     close tray icon\n'
     printf '    systemctl --user status github-notifier   check status\n'
-    printf '    journalctl --user -u github-notifier -f   live logs\n'
-    printf '    systemctl --user restart github-notifier  restart\n\n'
+    printf '    journalctl --user -u github-notifier -f   live logs\n\n'
     printf '  To update later:\n'
     printf '    curl -fsSL https://raw.githubusercontent.com/%s/master/install.sh | bash\n\n' "$REPO"
 }

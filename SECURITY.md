@@ -11,7 +11,7 @@ The following versions of github-notifier receive security updates:
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability, please send an email to
-[INSERT EMAIL]. Do not open a public issue.
+lucasvidela94@gmail.com. Do not open a public issue.
 
 Please include:
 - Description of the vulnerability

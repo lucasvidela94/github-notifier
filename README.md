@@ -1,8 +1,8 @@
 # github-notifier
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/your-username/github-notifier)](https://github.com/your-username/github-notifier)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/lucasvidela94/github-notifier)](https://github.com/lucasvidela94/github-notifier)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/your-username/github-notifier)](https://github.com/your-username/github-notifier/releases/latest)
+[![Release](https://img.shields.io/github/v/release/lucasvidela94/github-notifier)](https://github.com/lucasvidela94/github-notifier/releases/latest)
 
 A lightweight system tray application written in Go that surfaces GitHub pull request
 comments as desktop notifications. Lives in your taskbar next to the volume and
@@ -36,7 +36,7 @@ Supported distros: Arch, Ubuntu/Debian, Fedora, openSUSE.
 ## Installation
 
 ```bash
-git clone https://github.com/your-username/github-notifier
+git clone https://github.com/lucasvidela94/github-notifier
 cd github-notifier
 ./install.sh
 ```
@@ -175,5 +175,5 @@ approachable and respectable.
 
 ## Support
 
-- Open an [Issue](https://github.com/your-username/github-notifier/issues)
+- Open an [Issue](https://github.com/lucasvidela94/github-notifier/issues)
 - Check [SUPPORT.md](SUPPORT.md) for common problems

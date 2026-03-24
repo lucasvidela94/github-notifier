@@ -2,9 +2,9 @@
 
 ## Getting Help
 
-- **Issues**: Open a [GitHub Issue](https://github.com/your-username/github-notifier/issues)
+- **Issues**: Open a [GitHub Issue](https://github.com/lucasvidela94/github-notifier/issues)
   for bugs and feature requests
-- **Discussions**: Use [GitHub Discussions](https://github.com/your-username/github-notifier/discussions)
+- **Discussions**: Use [GitHub Discussions](https://github.com/lucasvidela94/github-notifier/discussions)
   for questions
 
 ## FAQ
